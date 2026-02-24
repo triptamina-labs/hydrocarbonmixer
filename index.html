@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HydrocarbonMixer — Propano + Isobutano</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="app">
+
+      <!-- ── Header ── -->
+      <header class="header">
+        <div class="header-brand">
+          <img src="/image.png" alt="" class="header-logo" width="40" height="40" aria-hidden="true" />
+          <h1>HydrocarbonMixer</h1>
+        </div>
+        <div class="header-right">
+          <p class="header-subtitle">Modelado de Solventes · Propano + Isobutano</p>
+          <button type="button" class="header-docs-btn" id="docs-toggle" aria-label="Documentación">Docs</button>
+          <button class="settings-btn" id="settings-toggle" aria-label="Configuración">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- ── Settings Modal ── -->
+      <div class="modal-overlay" id="settings-overlay"></div>
+      <div class="modal" id="settings-panel">
+        <div class="modal-header">
+          <h2>Configuración</h2>
+          <button class="modal-close" id="settings-close" aria-label="Cerrar">&times;</button>
+        </div>
+
+        <div class="modal-section">
+          <h3 class="modal-section-title">Unidades</h3>
+          <div class="settings-row">
+            <label for="unit-pressure">Presión</label>
+            <select id="unit-pressure">
+              <option value="bar">bar</option>
+              <option value="psi" selected>psi</option>
+              <option value="kPa">kPa</option>
+              <option value="atm">atm</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label for="unit-temp">Temperatura</label>
+            <select id="unit-temp">
+              <option value="C" selected>°C</option>
+              <option value="F">°F</option>
+              <option value="K">K</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-section">
+          <h3 class="modal-section-title" id="safety-title">Zonas de seguridad del tanque</h3>
+          <div class="settings-slider-row">
+            <label for="thresh-caution">Precaución &ge;</label>
+            <input type="range" id="thresh-caution" min="50" max="400" value="150" step="10" />
+            <output id="thresh-caution-val" class="settings-slider-val">150 psi</output>
+          </div>
+          <div class="settings-slider-row">
+            <label for="thresh-danger">Peligro &ge;</label>
+            <input type="range" id="thresh-danger" min="50" max="400" value="250" step="10" />
+            <output id="thresh-danger-val" class="settings-slider-val">250 psi</output>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Docs Modal (tarjetas) ── -->
+      <div class="docs-backdrop" id="docs-backdrop" role="dialog" aria-modal="true" aria-label="Documentación">
+        <div class="modal-overlay docs-backdrop__overlay" id="docs-overlay"></div>
+        <div class="modal docs-modal" id="docs-panel" aria-label="Documentación de la app">
+        <div class="docs-modal-header">
+          <h2>Documentación</h2>
+          <button type="button" class="modal-close" id="docs-close" aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="docs-cards-wrap">
+          <article class="docs-card active" data-docs-index="0">
+            <h3>¿Qué es HydrocarbonMixer?</h3>
+            <p>Herramienta para modelar mezclas <strong>propano + isobutano</strong>: presión de vapor, densidad del líquido y diagrama de fases presión–temperatura. Pensada para apoyo en extracciones con hidrocarburos (por ejemplo, extracciones de cannabis con solventes licuados).</p>
+          </article>
+          <article class="docs-card" data-docs-index="1">
+            <h3>Contexto: extracciones con cannabis</h3>
+            <p>En extracciones con solventes licuados se usan a menudo <strong>propano (C₃H₈)</strong> e <strong>isobutano (i-C₄H₁₀)</strong> puros o en mezcla. La mezcla permite ajustar la presión de trabajo, la selectividad y la temperatura de recuperación del solvente. Conocer la presión de vapor y la densidad ayuda a operar con seguridad y a dosificar correctamente.</p>
+          </article>
+          <article class="docs-card" data-docs-index="2">
+            <h3>Composición de la mezcla</h3>
+            <p>La <strong>barra superior</strong> define la fracción molar de propano (0 % = isobutano puro, 100 % = propano puro). Todo lo que muestra la app —presión en tanque, densidad, gráficos— depende de esta composición. Más propano implica mayor presión de vapor a la misma temperatura.</p>
+          </article>
+          <article class="docs-card" data-docs-index="3">
+            <h3>Pestaña Presión de vapor</h3>
+            <p>Muestra el <strong>diagrama P–T</strong> con curvas de saturación de propano e isobutano y el punto crítico de la mezcla. Puedes elegir la temperatura ambiente con el slider; la presión en el tanque se calcula y se clasifica en zonas <strong>seguro</strong>, <strong>precaución</strong> y <strong>peligro</strong>. Los umbrales de precaución y peligro se configuran en el botón de configuración (engranaje).</p>
+          </article>
+          <article class="docs-card" data-docs-index="4">
+            <h3>Pestaña Densidad</h3>
+            <p>Muestra la <strong>densidad del líquido</strong> de la mezcla a 25 °C y a −40 °C, y la masa molar. Útil para calcular la masa de solvente a partir del volumen o para comparar mezclas. La densidad depende de la composición y de la temperatura.</p>
+          </article>
+          <article class="docs-card" data-docs-index="5">
+            <h3>Modelo y ecuaciones</h3>
+            <p>Se asume <strong>mezcla ideal</strong>: ley de Raoult para la presión de vapor (ecuación de Antoine por componente) y mezcla ideal de volúmenes para la densidad (ecuación de Rackett por componente). El punto crítico de la mezcla se estima con la regla de Kay. Son estimaciones; en instalaciones reales hay que respetar siempre las especificaciones del equipo y la normativa.</p>
+          </article>
+        </div>
+        <div class="docs-nav">
+          <span class="docs-counter" id="docs-counter">1 / 6</span>
+          <div class="docs-nav-btns">
+            <button type="button" class="docs-btn docs-prev" id="docs-prev" aria-label="Anterior">Anterior</button>
+            <button type="button" class="docs-btn docs-next" id="docs-next" aria-label="Siguiente">Siguiente</button>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      <!-- ── Global Composition Bar ── -->
+      <div class="comp-bar">
+        <div class="comp-bar-inner">
+          <label for="g-slider">Fracción molar de Propano</label>
+          <input type="range" id="g-slider" min="0" max="100" value="70" step="1" />
+          <div class="comp-bar-ends">
+            <span>0 % (i-C₄H₁₀ puro)</span>
+            <output id="g-slider-val" class="badge">70 %</output>
+            <span>100 % (C₃H₈ puro)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Tab Navigation ── -->
+      <nav class="tab-nav" role="tablist">
+        <button class="tab-btn active" data-tab="vapor" role="tab">Presión de Vapor</button>
+        <button class="tab-btn" data-tab="density" role="tab">Densidad</button>
+      </nav>
+
+      <!-- ════════════════════════════════════════ -->
+      <!-- TAB 1: Presión de Vapor                 -->
+      <!-- ════════════════════════════════════════ -->
+      <section class="tab-panel active" id="panel-vapor">
+        <div class="panel-grid">
+          <div class="chart-wrap">
+            <canvas id="chart-vapor"></canvas>
+          </div>
+          <aside class="side-cards">
+            <div class="control-card">
+              <div class="control-header">
+                <label for="tank-temp">Temperatura ambiente</label>
+                <output id="tank-temp-val" class="badge">25 °C</output>
+              </div>
+              <input type="range" id="tank-temp" min="-20" max="100" value="25" step="1" />
+              <div class="slider-labels"><span id="tank-temp-min">-20 °C</span><span id="tank-temp-max">100 °C</span></div>
+            </div>
+            <div class="info-card tank-pressure-card" id="safety-card">
+              <span class="info-label">Presión en tanque</span>
+              <div class="tank-reading">
+                <span id="tank-psi" class="info-value">—</span>
+                <span id="tank-secondary" class="tank-secondary">—</span>
+              </div>
+              <span id="safety-text" class="tank-safety-badge">—</span>
+            </div>
+
+            <div class="side-divider"></div>
+
+            <div class="info-card">
+              <span class="info-label">Punto crítico mezcla (Kay)</span>
+              <span id="crit-mix" class="info-value">—</span>
+            </div>
+            <div class="info-card">
+              <span class="info-label">Densidad mezcla</span>
+              <span id="mix-dens" class="info-value">—</span>
+            </div>
+            <div class="info-card">
+              <span class="info-label">Masa molar mezcla</span>
+              <span id="mix-mm" class="info-value">—</span>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════ -->
+      <!-- TAB 3: Densidad                         -->
+      <!-- ════════════════════════════════════════ -->
+      <section class="tab-panel" id="panel-density">
+        <div class="panel-grid">
+          <div class="chart-wrap">
+            <canvas id="chart-density"></canvas>
+          </div>
+          <aside class="side-cards">
+            <div class="info-card">
+              <span class="info-label">Densidad mezcla @ 25 °C</span>
+              <span id="dens25-value" class="info-value">—</span>
+            </div>
+            <div class="info-card">
+              <span class="info-label">Densidad mezcla @ -40 °C</span>
+              <span id="dens-40-value" class="info-value">—</span>
+            </div>
+            <div class="info-card">
+              <span class="info-label">Masa molar mezcla</span>
+              <span id="mmolar-value" class="info-value">—</span>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
