@@ -5,12 +5,12 @@ import {
   LineElement,
   PointElement,
   LinearScale,
-  CategoryScale,
   Tooltip,
   Legend,
   Filler,
   ScatterController,
 } from 'chart.js';
+import type { LegendItem, Scale, TooltipItem } from 'chart.js';
 import {
   PROPANE_ANTOINE,
   ISOBUTANE_ANTOINE,
@@ -30,11 +30,22 @@ Chart.register(
   LineElement,
   PointElement,
   LinearScale,
-  CategoryScale,
   Tooltip,
   Legend,
   Filler,
 );
+
+/** Colores de ejes/tooltip alineados con DecarbTime */
+const CHART_TICK = '#8b8d94';
+const CHART_GRID = 'rgba(255, 255, 255, 0.06)';
+const CHART_AXIS_BORDER = '#2a2d35';
+const TOOLTIP_BG = '#1e2027';
+const TOOLTIP_TITLE = '#e4e5e7';
+const TOOLTIP_BODY = '#8b8d94';
+const TOOLTIP_BORDER = '#2a2d35';
+/** Curva / puntos de mezcla: acento principal (mismo azul que sliders) */
+const MIX_LINE = '#5b9bf5';
+const MIX_FILL = 'rgba(91, 155, 245, 0.08)';
 
 // ── DOM helpers ──
 
@@ -135,83 +146,73 @@ settingsClose.addEventListener('click', (e) => {
   closeSettings();
 });
 
-// ── Docs modal (tarjetas) ──
+// ── Acerca del modelo (carrusel como DecarbTime / DabPurge) ──
 
-const DOCS_N = 6;
 const docsToggle = $<HTMLButtonElement>('docs-toggle');
-const docsBackdrop = $('docs-backdrop');
-const docsPrevBtn = $<HTMLButtonElement>('docs-prev');
-const docsNextBtn = $<HTMLButtonElement>('docs-next');
-const docsCounter = $('docs-counter');
-const docsCards = document.querySelectorAll<HTMLElement>('.docs-card');
+const infoOverlay = document.getElementById('info-overlay')!;
+const docSlides = document.querySelectorAll<HTMLElement>('#carousel [data-slide]');
+const dotsContainer = document.getElementById('dots')!;
+const pageIndicatorEl = document.getElementById('page-indicator')!;
+const btnPrevDoc = document.getElementById('btn-prev') as HTMLButtonElement;
+const btnNextDoc = document.getElementById('btn-next') as HTMLButtonElement;
+const docTotal = docSlides.length;
+let docCurrent = 0;
 
-let docsIndex = 0;
+for (let i = 0; i < docTotal; i++) {
+  dotsContainer.appendChild(document.createElement('span'));
+}
+const docDots = dotsContainer.querySelectorAll('span');
 
-function updateDocsCard() {
-  docsCards.forEach((card, i) => {
-    card.classList.toggle('active', i === docsIndex);
-  });
-  docsCounter.textContent = `${docsIndex + 1} / ${DOCS_N}`;
-  docsPrevBtn.disabled = docsIndex === 0;
-  docsNextBtn.disabled = docsIndex === DOCS_N - 1;
+function goToDocSlide(idx: number) {
+  docCurrent = Math.max(0, Math.min(docTotal - 1, idx));
+  docSlides.forEach((s, i) => s.classList.toggle('active', i === docCurrent));
+  docDots.forEach((d, i) => d.classList.toggle('active', i === docCurrent));
+  pageIndicatorEl.textContent = `${docCurrent + 1} / ${docTotal}`;
+  btnPrevDoc.disabled = docCurrent === 0;
+  btnNextDoc.disabled = docCurrent === docTotal - 1;
 }
 
-function openDocs() {
-  docsIndex = 0;
-  updateDocsCard();
-  docsBackdrop.classList.add('open');
-}
+goToDocSlide(0);
 
-function closeDocs() {
-  docsBackdrop.classList.remove('open');
-}
+btnPrevDoc.addEventListener('click', () => goToDocSlide(docCurrent - 1));
+btnNextDoc.addEventListener('click', () => goToDocSlide(docCurrent + 1));
+docDots.forEach((d, i) => d.addEventListener('click', () => goToDocSlide(i)));
+
+let docSwipeX0: number | null = null;
+const carouselDoc = document.getElementById('carousel')!;
+carouselDoc.addEventListener(
+  'touchstart',
+  (e) => {
+    docSwipeX0 = e.touches[0].clientX;
+  },
+  { passive: true },
+);
+carouselDoc.addEventListener('touchend', (e) => {
+  if (docSwipeX0 === null) return;
+  const dx = e.changedTouches[0].clientX - docSwipeX0;
+  if (Math.abs(dx) > 40) goToDocSlide(docCurrent + (dx < 0 ? 1 : -1));
+  docSwipeX0 = null;
+});
+
+document.addEventListener('keydown', (e) => {
+  if (infoOverlay.classList.contains('hidden')) return;
+  if (e.key === 'Escape') infoOverlay.classList.add('hidden');
+  if (e.key === 'ArrowRight') goToDocSlide(docCurrent + 1);
+  if (e.key === 'ArrowLeft') goToDocSlide(docCurrent - 1);
+});
 
 docsToggle.addEventListener('click', () => {
-  if (docsBackdrop.classList.contains('open')) closeDocs();
-  else openDocs();
+  goToDocSlide(0);
+  infoOverlay.classList.remove('hidden');
 });
-
-// Cerrar al hacer clic en overlay o en botón cerrar (delegación en document)
-document.addEventListener(
-  'click',
-  (e) => {
-    if (!docsBackdrop.classList.contains('open')) return;
-    const t = e.target as HTMLElement;
-    const isOverlay = t.id === 'docs-overlay' || t.classList.contains('docs-backdrop__overlay');
-    const isCloseBtn = t.id === 'docs-close' || t.closest('#docs-close');
-    const isBackdrop = t.id === 'docs-backdrop';
-    if (isOverlay || isCloseBtn || isBackdrop) closeDocs();
-  },
-  true
-);
-
-// Escape y flechas para cerrar/navegar (captura para tener prioridad)
-document.addEventListener(
-  'keydown',
-  (e) => {
-    if (!docsBackdrop.classList.contains('open')) return;
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      closeDocs();
-    }
-    if (e.key === 'ArrowLeft') docsPrevBtn.click();
-    if (e.key === 'ArrowRight') docsNextBtn.click();
-  },
-  true
-);
-
-docsPrevBtn.addEventListener('click', () => {
-  if (docsIndex > 0) {
-    docsIndex--;
-    updateDocsCard();
-  }
+document.getElementById('btn-close')!.addEventListener('click', () => {
+  infoOverlay.classList.add('hidden');
 });
-
-docsNextBtn.addEventListener('click', () => {
-  if (docsIndex < DOCS_N - 1) {
-    docsIndex++;
-    updateDocsCard();
-  }
+document.querySelector('#info-overlay .overlay-inner')!.addEventListener('click', (e) => {
+  e.stopPropagation();
+});
+infoOverlay.addEventListener('click', () => {
+  infoOverlay.classList.add('hidden');
 });
 
 unitPressureSelect.addEventListener('change', () => {
@@ -240,7 +241,7 @@ threshDangerSlider.addEventListener('input', () => {
 // ── Global composition slider ──
 
 const gSlider = $<HTMLInputElement>('g-slider');
-const gSliderVal = $<HTMLOutputElement>('g-slider-val');
+const gSliderVal = $<HTMLSpanElement>('g-slider-val');
 
 // ── Tab system ──
 
@@ -253,7 +254,7 @@ tabBtns.forEach((btn) => {
     const tab = btn.dataset.tab!;
     if (tab === activeTab) return;
     activeTab = tab;
-    tabBtns.forEach((b) => b.classList.toggle('active', b === btn));
+    tabBtns.forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     tabPanels.forEach((p) => p.classList.toggle('active', p.id === `panel-${tab}`));
     refreshActiveTab();
   });
@@ -294,6 +295,11 @@ const propSat = saturationCurve(PROPANE_ANTOINE, PROPANE_CRIT.Tc);
 const isobSat = saturationCurve(ISOBUTANE_ANTOINE, ISOBUTANE_CRIT.Tc);
 
 const tankTempSlider = $<HTMLInputElement>('tank-temp');
+
+function critMixReadoutLine(xMix: number): string {
+  const c = mixCritical(xMix);
+  return `${convertT(c.Tc - 273.15).toFixed(1)} ${tLabel()} · ${convertP(c.Pc).toFixed(1)} ${pLabel()}`;
+}
 
 function mixVaporPressureBar(xProp: number, tempC: number): number {
   const pp = vaporPressureBar(PROPANE_ANTOINE, tempC);
@@ -344,14 +350,13 @@ const vaporChart = new Chart($<HTMLCanvasElement>('chart-vapor'), {
       {
         label: `Mezcla (${xPercent} %)`,
         data: toScatterConverted(mixSatCurve(xFrac())),
-        borderColor: '#a855f7',
-        backgroundColor: 'rgba(168,85,247,0.06)',
+        borderColor: MIX_LINE,
+        backgroundColor: MIX_FILL,
         borderWidth: 3,
         pointRadius: 0,
         pointHoverRadius: 4,
         showLine: true,
         tension: 0.4,
-        fill: 'origin',
       },
       {
         label: 'Pc Propano',
@@ -374,8 +379,8 @@ const vaporChart = new Chart($<HTMLCanvasElement>('chart-vapor'), {
       {
         label: 'Pc Mezcla (Kay)',
         data: [(() => { const c = mixCritical(xFrac()); return { x: convertT(c.Tc - 273.15), y: convertP(c.Pc) }; })()],
-        borderColor: '#a855f7',
-        backgroundColor: '#a855f7',
+        borderColor: MIX_LINE,
+        backgroundColor: MIX_LINE,
         pointRadius: 7,
         pointStyle: 'star',
         showLine: false,
@@ -384,7 +389,7 @@ const vaporChart = new Chart($<HTMLCanvasElement>('chart-vapor'), {
         label: 'T ambiente',
         data: [tankSliderPoint()],
         borderColor: '#fff',
-        backgroundColor: '#a855f7',
+        backgroundColor: MIX_LINE,
         pointRadius: 5,
         pointHoverRadius: 7,
         pointStyle: 'circle',
@@ -408,7 +413,7 @@ function scatterChartOptions() {
       legend: {
         position: 'top' as const,
         labels: {
-          color: '#8888a0',
+          color: CHART_TICK,
           font: { family: 'Inter', size: 11 },
           boxWidth: 12,
           boxHeight: 2,
@@ -416,13 +421,13 @@ function scatterChartOptions() {
         },
       },
       tooltip: {
-        backgroundColor: 'rgba(18,18,26,0.95)',
-        titleColor: '#e8e8f0',
-        bodyColor: '#aaaabc',
-        borderColor: '#2a2a3a',
+        backgroundColor: TOOLTIP_BG,
+        titleColor: TOOLTIP_TITLE,
+        bodyColor: TOOLTIP_BODY,
+        borderColor: TOOLTIP_BORDER,
         borderWidth: 1,
-        cornerRadius: 8,
-        padding: 12,
+        cornerRadius: 6,
+        padding: 10,
         callbacks: {
           label: (ctx: { raw: unknown; dataset: { label?: string } }) => {
             const p = ctx.raw as { x: number; y: number };
@@ -437,28 +442,28 @@ function scatterChartOptions() {
         title: {
           display: true,
           text: `Temperatura (${tLabel()})`,
-          color: '#8888a0',
+          color: CHART_TICK,
           font: { family: 'Inter', size: 13, weight: 'normal' as const },
         },
         min: tRange.min,
         max: tRange.max,
-        ticks: { color: '#666680', font: { family: 'Inter', size: 11 } },
-        grid: { color: 'rgba(255,255,255,0.06)' },
-        border: { color: '#2a2a3a' },
+        ticks: { color: CHART_TICK, font: { family: 'Inter', size: 10 } },
+        grid: { color: CHART_GRID },
+        border: { color: CHART_AXIS_BORDER },
       },
       y: {
         type: 'linear' as const,
         title: {
           display: true,
           text: `Presión (${pLabel()})`,
-          color: '#8888a0',
+          color: CHART_TICK,
           font: { family: 'Inter', size: 13, weight: 'normal' as const },
         },
         min: 0,
         max: vaporPMax(),
-        ticks: { color: '#666680', font: { family: 'Inter', size: 11 } },
-        grid: { color: 'rgba(255,255,255,0.06)' },
-        border: { color: '#2a2a3a' },
+        ticks: { color: CHART_TICK, font: { family: 'Inter', size: 10 } },
+        grid: { color: CHART_GRID },
+        border: { color: CHART_AXIS_BORDER },
       },
     },
   };
@@ -483,24 +488,19 @@ function updateVaporTab() {
   vaporChart.options.plugins!.tooltip = opts.plugins.tooltip;
   vaporChart.update('none');
 
-  const critTc = convertT(crit.Tc - 273.15);
-  const critPc = convertP(crit.Pc);
-  $('crit-mix').textContent = `${critTc.toFixed(1)} ${tLabel()} · ${critPc.toFixed(1)} ${pLabel()}`;
-
-  const tempC = Number(tankTempSlider.value);
-  const dens = mixLiquidDensity(x, tempC);
-  const Mmix = x * PROPANE_CRIT.M + (1 - x) * ISOBUTANE_CRIT.M;
-  $('mix-dens').textContent = dens !== null ? `${dens.toFixed(4)} g/mL` : '—';
-  $('mix-mm').textContent = `${Mmix.toFixed(2)} g/mol`;
+  $('crit-mix').textContent = critMixReadoutLine(x);
 
   updateTankPressure();
 }
 
 function updateTankPressure() {
   const tempC = Number(tankTempSlider.value);
-  $('tank-temp-val').textContent = `${convertT(tempC).toFixed(0)} ${tLabel()}`;
-  $('tank-temp-min').textContent = `${convertT(-20).toFixed(0)} ${tLabel()}`;
-  $('tank-temp-max').textContent = `${convertT(100).toFixed(0)} ${tLabel()}`;
+  const valStr = `${convertT(tempC).toFixed(0)} ${tLabel()}`;
+  const minStr = `${convertT(-20).toFixed(0)} ${tLabel()}`;
+  const maxStr = `${convertT(100).toFixed(0)} ${tLabel()}`;
+  $('tank-temp-val').textContent = valStr;
+  $('tank-temp-min').textContent = minStr;
+  $('tank-temp-max').textContent = maxStr;
 
   const pBar = mixVaporPressureBar(xFrac(), tempC);
   const pConverted = convertP(pBar);
@@ -509,17 +509,25 @@ function updateTankPressure() {
   vaporChart.data.datasets[6].data = [{ x: convertT(tempC), y: convertP(pBar) }];
   vaporChart.update('none');
 
+  updateDensityTempMarker();
+  densityChart.update('none');
+
   const x = xFrac();
   const dens = mixLiquidDensity(x, tempC);
+  $('mix-dens-label').textContent = `Densidad mezcla @ ${convertT(tempC).toFixed(0)} ${tLabel()}`;
   $('mix-dens').textContent = dens !== null ? `${dens.toFixed(4)} g/mL` : '—';
+  const Mmix = x * PROPANE_CRIT.M + (1 - x) * ISOBUTANE_CRIT.M;
+  $('mix-mm').textContent = `${Mmix.toFixed(2)} g/mol`;
 
-  $('tank-psi').textContent = `${pConverted.toFixed(1)} ${pLabel()}`;
+  const pressureMain = `${pConverted.toFixed(1)} ${pLabel()}`;
+  $('tank-psi').textContent = pressureMain;
 
   const secondaryParts: string[] = [];
   if (pUnit !== 'bar') secondaryParts.push(`${pBar.toFixed(2)} bar`);
   if (pUnit !== 'psi') secondaryParts.push(`${pPsi.toFixed(1)} psi`);
   if (pUnit !== 'kPa') secondaryParts.push(`${(pBar * 100).toFixed(0)} kPa`);
-  $('tank-secondary').textContent = secondaryParts.slice(0, 2).join(' · ');
+  const secondaryStr = secondaryParts.slice(0, 2).join(' · ');
+  $('tank-secondary').textContent = secondaryStr;
 
   let zone: 'safe' | 'caution' | 'danger';
   let zoneText: string;
@@ -535,62 +543,91 @@ function updateTankPressure() {
     zoneText = 'Peligro — Alta presión';
   }
 
-  $('safety-card').className = `info-card tank-pressure-card ${zone}`;
+  const safetyClass = `info-card tank-pressure-card vapor-stats-card ${zone}`;
+  $('safety-card').className = safetyClass;
   $('safety-text').textContent = zoneText;
 }
 
-tankTempSlider.addEventListener('input', updateTankPressure);
+tankTempSlider.addEventListener('input', () => {
+  updateTankPressure();
+});
 
 // ═══════════════════════════════════════════════
 // TAB 2: Density Chart
 // ═══════════════════════════════════════════════
 
-const DENS_T_MIN = -50;
-const DENS_T_MAX = 80;
+const DENS_T_MIN = -60;
+const DENS_T_MAX = 100;
 const DENS_N = 400;
+/** Marcas del eje X cada 20 °C (valores en °C; se convierten con convertT) */
+const DENS_TICK_TEMPS_C = [-60, -40, -20, 0, 20, 40, 60, 80, 100] as const;
 const densTempsC = linspace(DENS_T_MIN, DENS_T_MAX, DENS_N);
 
-function densityArray(fn: (t: number) => number | null): (number | null)[] {
-  return densTempsC.map(fn);
+function densityXYArray(fn: (t: number) => number | null): { x: number; y: number | null }[] {
+  return densTempsC.map((t) => ({
+    x: convertT(t),
+    y: fn(t),
+  }));
 }
 
-function densLabelsConverted(): string[] {
-  return densTempsC.map((t) => convertT(t).toFixed(1));
+/** Punto en la curva de mezcla alineado con el slider de temperatura (índice de dataset 3) */
+function updateDensityTempMarker(): void {
+  const tempC = Number(tankTempSlider.value);
+  const xMix = xFrac();
+  const dens = mixLiquidDensity(xMix, tempC);
+  const ds = densityChart.data.datasets[3];
+  if (dens != null && Number.isFinite(dens)) {
+    ds.data = [{ x: convertT(tempC), y: dens }];
+  } else {
+    ds.data = [];
+  }
 }
 
 const densityChart = new Chart($<HTMLCanvasElement>('chart-density'), {
   type: 'line',
   data: {
-    labels: densLabelsConverted(),
     datasets: [
       {
         label: 'Propano 100 %',
-        data: densityArray((t) => liquidDensity(PROPANE_CRIT, t)),
+        data: densityXYArray((t) => liquidDensity(PROPANE_CRIT, t)),
         borderColor: 'rgba(239,68,68,0.4)',
         borderWidth: 1.5,
         borderDash: [6, 4],
         pointRadius: 0,
         tension: 0.4,
+        spanGaps: true,
       },
       {
         label: 'Isobutano 100 %',
-        data: densityArray((t) => liquidDensity(ISOBUTANE_CRIT, t)),
+        data: densityXYArray((t) => liquidDensity(ISOBUTANE_CRIT, t)),
         borderColor: 'rgba(59,130,246,0.4)',
         borderWidth: 1.5,
         borderDash: [6, 4],
         pointRadius: 0,
         tension: 0.4,
+        spanGaps: true,
       },
       {
         label: `Mezcla (${xPercent} %)`,
-        data: densityArray((t) => mixLiquidDensity(xFrac(), t)),
-        borderColor: '#a855f7',
+        data: densityXYArray((t) => mixLiquidDensity(xFrac(), t)),
+        borderColor: MIX_LINE,
         borderWidth: 3,
         pointRadius: 0,
         pointHoverRadius: 4,
-        pointHoverBackgroundColor: '#a855f7',
+        pointHoverBackgroundColor: MIX_LINE,
         tension: 0.4,
-        fill: { target: 'origin', above: 'rgba(168,85,247,0.06)' },
+        spanGaps: true,
+      },
+      {
+        label: 'Temperatura del tanque',
+        data: [] as { x: number; y: number }[],
+        borderColor: '#fff',
+        backgroundColor: MIX_LINE,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        borderWidth: 2,
+        showLine: false,
+        order: -1,
       },
     ],
   },
@@ -602,70 +639,85 @@ function densChartOptions() {
     responsive: true,
     maintainAspectRatio: false,
     animation: { duration: 200 } as const,
-    interaction: { mode: 'index' as const, intersect: false },
+    interaction: { mode: 'nearest' as const, intersect: false, axis: 'x' as const },
     plugins: {
       legend: {
         position: 'top' as const,
         labels: {
-          color: '#8888a0',
+          color: CHART_TICK,
           font: { family: 'Inter', size: 11 },
           boxWidth: 14,
           boxHeight: 2,
           padding: 14,
+          filter: (item: LegendItem) => item.datasetIndex !== 3,
         },
       },
       tooltip: {
-        backgroundColor: 'rgba(18,18,26,0.95)',
-        titleColor: '#e8e8f0',
-        bodyColor: '#aaaabc',
-        borderColor: '#2a2a3a',
+        backgroundColor: TOOLTIP_BG,
+        titleColor: TOOLTIP_TITLE,
+        bodyColor: TOOLTIP_BODY,
+        borderColor: TOOLTIP_BORDER,
         borderWidth: 1,
-        cornerRadius: 8,
-        padding: 12,
+        cornerRadius: 6,
+        padding: 10,
         titleFont: { family: 'Inter', weight: 'bold' as const },
         bodyFont: { family: 'Inter' },
         callbacks: {
-          title: (items: { label: string }[]) => `${items[0].label} ${tLabel()}`,
-          label: (item: { dataset: { label?: string }; raw: unknown }) =>
-            ` ${item.dataset.label}: ${Number(item.raw).toFixed(4)} g/mL`,
+          title: (items: TooltipItem<'line'>[]) => {
+            const x = items[0]?.parsed.x;
+            return `${x != null ? x.toFixed(1) : '—'} ${tLabel()}`;
+          },
+          label: (item: TooltipItem<'line'>) => {
+            const y = item.parsed.y;
+            const yStr = y != null && Number.isFinite(y) ? y.toFixed(4) : '—';
+            return ` ${item.dataset.label}: ${yStr} g/mL`;
+          },
         },
       },
     },
     scales: {
       x: {
-        type: 'category' as const,
+        type: 'linear' as const,
+        min: convertT(DENS_T_MIN),
+        max: convertT(DENS_T_MAX),
         title: {
           display: true,
           text: `Temperatura (${tLabel()})`,
-          color: '#8888a0',
+          color: CHART_TICK,
           font: { family: 'Inter', size: 13, weight: 'normal' as const },
         },
-        ticks: {
-          color: '#666680',
-          font: { family: 'Inter', size: 11 },
-          maxTicksLimit: 12,
-          maxRotation: 0,
+        afterBuildTicks: (scale: Scale) => {
+          scale.ticks = [...DENS_TICK_TEMPS_C].map((tc) => ({ value: convertT(tc) }));
         },
-        grid: { color: 'rgba(255,255,255,0.06)' },
-        border: { color: '#2a2a3a' },
+        ticks: {
+          color: CHART_TICK,
+          font: { family: 'Inter', size: 10 },
+          maxRotation: 0,
+          callback: (tickValue: string | number) => {
+            const n = typeof tickValue === 'number' ? tickValue : Number(tickValue);
+            return Number.isFinite(n) ? n.toFixed(0) : String(tickValue);
+          },
+        },
+        grid: { color: CHART_GRID },
+        border: { color: CHART_AXIS_BORDER },
       },
       y: {
         type: 'linear' as const,
-        min: 0,
+        min: 0.3,
         max: 0.7,
         title: {
           display: true,
           text: 'Densidad (g/mL)',
-          color: '#8888a0',
+          color: CHART_TICK,
           font: { family: 'Inter', size: 13, weight: 'normal' as const },
         },
         ticks: {
-          color: '#666680',
-          font: { family: 'Inter', size: 11 },
+          color: CHART_TICK,
+          font: { family: 'Inter', size: 10 },
           stepSize: 0.05,
         },
-        grid: { color: 'rgba(255,255,255,0.06)' },
-        border: { color: '#2a2a3a' },
+        grid: { color: CHART_GRID },
+        border: { color: CHART_AXIS_BORDER },
       },
     },
   };
@@ -673,22 +725,21 @@ function densChartOptions() {
 
 function updateDensityTab() {
   const x = xFrac();
-  densityChart.data.labels = densLabelsConverted();
-  densityChart.data.datasets[2].data = densityArray((t) => mixLiquidDensity(x, t));
+  densityChart.data.datasets[0].data = densityXYArray((t) => liquidDensity(PROPANE_CRIT, t));
+  densityChart.data.datasets[1].data = densityXYArray((t) => liquidDensity(ISOBUTANE_CRIT, t));
+  densityChart.data.datasets[2].data = densityXYArray((t) => mixLiquidDensity(x, t));
   densityChart.data.datasets[2].label = `Mezcla (${xPercent} %)`;
+  updateDensityTempMarker();
 
   const opts = densChartOptions();
   densityChart.options.scales!.x = opts.scales.x;
+  densityChart.options.scales!.y = opts.scales.y;
   densityChart.options.plugins!.tooltip = opts.plugins.tooltip;
   densityChart.update('none');
 
-  const d25 = mixLiquidDensity(x, 25);
-  const dm40 = mixLiquidDensity(x, -40);
-  const Mmix = x * PROPANE_CRIT.M + (1 - x) * ISOBUTANE_CRIT.M;
+  $('crit-mix').textContent = critMixReadoutLine(x);
 
-  $('dens25-value').textContent = d25 !== null ? `${d25.toFixed(4)} g/mL` : '—';
-  $('dens-40-value').textContent = dm40 !== null ? `${dm40.toFixed(4)} g/mL` : '—';
-  $('mmolar-value').textContent = `${Mmix.toFixed(2)} g/mol`;
+  updateTankPressure();
 }
 
 // ═══════════════════════════════════════════════
@@ -708,15 +759,18 @@ function rebuildAllCharts() {
 }
 
 function updateCompBarColor(): void {
-  gSlider.style.setProperty('--g-slider-pct', `${gSlider.value}%`);
+  const pct = `${xPercent}%`;
+  gSlider.style.setProperty('--g-slider-pct', pct);
 }
 
-gSlider.addEventListener('input', () => {
+function onCompositionInput(): void {
   xPercent = Number(gSlider.value);
-  gSliderVal.textContent = `${xPercent} %`;
+  gSliderVal.textContent = `${xPercent}\u00A0%`;
   updateCompBarColor();
   refreshActiveTab();
-});
+}
+
+gSlider.addEventListener('input', onCompositionInput);
 
 updateCompBarColor();
 refreshActiveTab();
